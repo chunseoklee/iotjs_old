@@ -103,10 +103,10 @@ JObject::JObject(double v) {
   _obj_val = JVal::Double(v);
 }
 
-JObject::JObject(const char* v) {
+JObject::JObject(const char* v, bool need_unref) {
   _obj_val.type = JERRY_API_DATA_TYPE_STRING;
   _obj_val.v_string = jerry_api_create_string(v);
-  _unref_at_close = true;
+  _unref_at_close = need_unref;
 }
 
 JObject::JObject(const jerry_api_object_t* obj, bool need_unref) {

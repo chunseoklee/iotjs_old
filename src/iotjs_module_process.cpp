@@ -42,6 +42,40 @@ static bool Binding(const jerry_api_object_t *function_obj_p,
   return true;
 }
 
+static bool Compile(const jerry_api_object_t *function_obj_p,
+                     const jerry_api_value_t *this_p,
+                     jerry_api_value_t *ret_val_p,
+                     const jerry_api_value_t args_p [],
+                     const uint16_t args_cnt) {
+  assert(args_cnt == 1);
+  assert(JVAL_IS_STRING(&args_p[0]));
+  int len = -GetJerryStringLength(&args_p[0]);
+  char* code = AllocCharBuffer(len+1);
+  jerry_api_string_to_char_buffer(args_p[0].v_string, code, len+1);
+
+  jerry_api_eval(code,sizeof(code),false,false,ret_val_p);
+  ReleaseCharBuffer(code);
+  return true;
+}
+
+static bool ReadSource(const jerry_api_object_t *function_obj_p,
+                        const jerry_api_value_t *this_p,
+                        jerry_api_value_t *ret_val_p,
+                        const jerry_api_value_t args_p [],
+                        const uint16_t args_cnt) {
+  assert(args_cnt == 1);
+  assert(JVAL_IS_STRING(&args_p[0]));
+
+  char buf[128];
+  int len = -GetJerryStringLength(&args_p[0]);
+  jerry_api_string_to_char_buffer(args_p[0].v_string, buf, len);
+
+  char* code = ReadFile(buf);
+  JObject ret_obj(code,false);
+  *ret_val_p = ret_obj.val();
+  ReleaseCharBuffer(code);
+  return true;
+}
 
 JObject* InitProcess() {
   Module* module = GetBuiltinModule(MODULE_PROCESS);

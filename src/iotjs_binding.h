@@ -82,7 +82,7 @@ class JObject {
   explicit JObject(int32_t v);
   explicit JObject(float v);
   explicit JObject(double v);
-  explicit JObject(const char* v);
+  explicit JObject(const char* v, bool need_unref = true);
   explicit JObject(const jerry_api_object_t* obj, bool need_unref = true);
   explicit JObject(const jerry_api_value_t* val, bool need_unref = true);
   explicit JObject(jerry_external_handler_t handler);
