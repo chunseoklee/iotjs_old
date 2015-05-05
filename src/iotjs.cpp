@@ -29,7 +29,7 @@
 #include "iotjs_module_process.h"
 
 #include "iotjs.h"
-
+#include "iotjs_js.h"
 
 namespace iotjs {
 
@@ -69,6 +69,21 @@ static void CleanupModules() {
   CleanupModuleList();
 }
 
+static bool InitIoTjs() {
+
+  char *iotjs_main_src = iotjs::ReadFile("../../../../src/js/iotjs.js");
+  jerry_api_value_t retval_p;
+  jerry_api_eval(mainjs,mainjs_length,
+                 false, false, &retval_p);
+  JObject global(GetGlobal());
+  JObject process = global.GetProperty("process");
+  JObject iotjs_fun(&retval_p, true);
+  JObject *args = new JObject[1];
+  args[0] = process;
+  iotjs_fun.Call(&global, &args, 1);
+
+  return 1;
+}
 
 static bool StartIoTjs() {
   bool is_ok;
@@ -83,12 +98,9 @@ static bool StartIoTjs() {
   global.SetNative((uintptr_t)(&env));
 
 
-  // Find entry function.
-  JObject start_func = global.GetProperty("startIoTjs");
-  assert(start_func.IsFunction());
-
   // Call the entry.
-  JObject res = start_func.Call(NULL, NULL, 0);
+  // load and call iotjs.js
+  InitIoTjs();
 
   bool more;
   do {
@@ -98,8 +110,9 @@ static bool StartIoTjs() {
   return true;
 }
 
+
 int Start(char* src) {
-  if (!InitJerry(src)) {
+  if (!InitJerry("")) {
     fprintf(stderr, "InitJerry failed\n");
     return 1;
   }
