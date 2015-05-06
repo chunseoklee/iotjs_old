@@ -17,7 +17,6 @@
 #  This file converts src/js/iotjs.js to a C-array in include/iotjs_js.h file  
 
 use strict;
-use feature qw/say/;
 
 my $lisence = "/* Copyright 2015 Samsung Electronics Co., Ltd.
  *
