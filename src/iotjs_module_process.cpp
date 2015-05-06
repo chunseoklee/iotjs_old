@@ -84,6 +84,8 @@ JObject* InitProcess() {
   if (process == NULL) {
     process = new JObject();
     process->CreateMethod("binding", Binding);
+    process->CreateMethod("compile", Compile);
+    process->CreateMethod("readSource", ReadSource);
 
     module->module = process;
 

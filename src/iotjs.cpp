@@ -71,7 +71,6 @@ static void CleanupModules() {
 
 static bool InitIoTjs() {
 
-  char *iotjs_main_src = iotjs::ReadFile("../../../../src/js/iotjs.js");
   jerry_api_value_t retval_p;
   jerry_api_eval(mainjs,mainjs_length,
                  false, false, &retval_p);
