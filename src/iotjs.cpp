@@ -112,7 +112,7 @@ static bool StartIoTjs() {
 
 
 int Start(char* src) {
-  if (!InitJerry(NULL)) {
+  if (!InitJerry("")) {
     fprintf(stderr, "InitJerry failed\n");
     return 1;
   }
