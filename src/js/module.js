@@ -22,6 +22,9 @@ function Module(id) {
 }
 module.exports = Module;
 
+Module.wrapper = Native.wrapper;
+Module.wrap = Native.wrap;
+
 Module.load = function(id,isMain) {
   if(process.native_sources[id]){
     return Native.require(id);
@@ -46,6 +49,3 @@ Module.runMain = function(){
 Module.prototype.require = function(id) {
   return Module.load(id);
 };
-
-Module.wrapper = Native.wrapper;
-Module.wrap = Native.wrap;
