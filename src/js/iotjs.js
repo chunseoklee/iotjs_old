@@ -16,9 +16,44 @@
 (function(process) {
   this.global = this;
 
-  function startup() {
-
+  function start_iotjs() {
+    var module = Native.require('module');
+    module.runMain();
   };
 
-  startup();
+  function Native(id) {
+    this.id = id;
+    this.filename = id + '.js';
+    this.exports = {};
+  }
+
+  Native.require = function(id) {
+    if (id == 'native') {
+      return Native;
+    }
+
+    var nativeMod = new Native(id);
+    nativeMod.compile();
+    return nativeMod.exports;
+  };
+
+  Native.wrap = function(script) {
+    var temp1 = Native.wrapper[0] + script;
+    temp1 = temp1 + Native.wrapper[1];
+    return temp1;
+  };
+
+  Native.wrapper = [
+    '(function (exports, require, module) { ',
+    ' });'
+  ];
+
+  Native.prototype.compile = function() {
+    var source = process.native_sources[this.id];
+    source = Native.wrap(source);
+    var fn = process.compile(source);
+    fn(this.exports, Native.require, this);
+  };
+
+  start_iotjs();
 });

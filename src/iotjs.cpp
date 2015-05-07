@@ -69,22 +69,28 @@ static void CleanupModules() {
   CleanupModuleList();
 }
 
-static bool InitIoTjs() {
+static bool InitIoTjs(char* filename) {
 
   jerry_api_value_t retval_p;
   jerry_api_eval(mainjs,mainjs_length,
                  false, false, &retval_p);
   JObject global(GetGlobal());
+
   JObject process = global.GetProperty("process");
+
+  // save user-given js filename in process.userjs
+  JObject user_filename(filename);
+  SetObjectField(process.val().v_object, "userjs", &(user_filename.val()));
+
   JObject iotjs_fun(&retval_p, true);
-  JObject *args = new JObject[1];
-  args[0] = process;
-  iotjs_fun.Call(&global, &args, 1);
+  JObject *args[] = { &process };
+  args[0] = &process;
+  iotjs_fun.Call(&global, (JObject**)&args, 1);
 
   return 1;
 }
 
-static bool StartIoTjs() {
+static bool StartIoTjs(char* filename) {
   bool is_ok;
 
   // Get jerry global object.
@@ -99,7 +105,7 @@ static bool StartIoTjs() {
 
   // Call the entry.
   // load and call iotjs.js
-  InitIoTjs();
+  InitIoTjs(filename);
 
   bool more;
   do {
@@ -118,7 +124,7 @@ int Start(char* src) {
 
   InitModules();
 
-  if (!StartIoTjs()) {
+  if (!StartIoTjs(src)) {
     fprintf(stderr, "StartIoTJs failed\n");
     return 1;
   }
@@ -139,11 +145,7 @@ extern "C" int iotjs_entry(int argc, char** argv) {
     return 1;
   }
 
-  char* src = iotjs::ReadFile(argv[1]);
-
-  int res = iotjs::Start(src);
-
-  iotjs::ReleaseCharBuffer(src);
+  int res = iotjs::Start(argv[1]);
 
   return res;
 }

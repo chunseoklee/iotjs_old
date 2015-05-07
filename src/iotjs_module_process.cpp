@@ -16,6 +16,7 @@
 #include "iotjs_binding.h"
 #include "iotjs_module.h"
 #include "iotjs_module_process.h"
+#include "iotjs_js.h"
 
 
 namespace iotjs {
@@ -77,6 +78,13 @@ static bool ReadSource(const jerry_api_object_t *function_obj_p,
   return true;
 }
 
+void SetNativeSources(JObject* native_sources) {
+  for (int i = 0; natives[i].name; i++) {
+    JObject native_source(natives[i].source);
+    native_sources->SetProperty(natives[i].name, &native_source);
+  }
+}
+
 JObject* InitProcess() {
   Module* module = GetBuiltinModule(MODULE_PROCESS);
   JObject* process = module->module;
@@ -86,6 +94,11 @@ JObject* InitProcess() {
     process->CreateMethod("binding", Binding);
     process->CreateMethod("compile", Compile);
     process->CreateMethod("readSource", ReadSource);
+
+    // process.native_sources
+    JObject native_sources;
+    SetNativeSources(&native_sources);
+    process->SetProperty("native_sources", &native_sources);
 
     module->module = process;
 
