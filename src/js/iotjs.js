@@ -55,5 +55,10 @@
     fn(this.exports, Native.require, this);
   };
 
+  // temp impl. before JSON.parse is done
+  process.JSONParse = function(text) {
+      return process.compile("(" + text + ");");
+  };
+
   start_iotjs();
 });
