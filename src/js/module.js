@@ -43,7 +43,7 @@ Module.load = function(id,isMain) {
 };
 
 Module.runMain = function(){
-  Module.load(process.userjs,true);
+  Module.load(process.argv[1],true);
 };
 
 Module.prototype.require = function(id) {

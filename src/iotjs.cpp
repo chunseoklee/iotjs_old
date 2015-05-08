@@ -79,8 +79,10 @@ static bool InitIoTjs(char* filename) {
   JObject process = global.GetProperty("process");
 
   // save user-given js filename in process.userjs
+  JObject argv;
   JObject user_filename(filename);
-  SetObjectField(process.val().v_object, "userjs", &(user_filename.val()));
+  SetObjectField(argv.val().v_object, "1", &(user_filename.val()));
+  SetObjectField(process.val().v_object, "argv", &(argv.val()));
 
   JObject iotjs_fun(&retval_p, true);
   JObject *args[] = { &process };
