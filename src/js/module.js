@@ -47,5 +47,5 @@ Module.runMain = function(){
 };
 
 Module.prototype.require = function(id) {
-  return Module.load(id);
+  return Module.load(id,1);
 };
