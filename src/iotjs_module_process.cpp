@@ -21,67 +21,86 @@
 
 namespace iotjs {
 
-static bool Binding(const jerry_api_object_t *function_obj_p,
-                    const jerry_api_value_t *this_p,
-                    jerry_api_value_t *ret_val_p,
-                    const jerry_api_value_t args_p [],
-                    const uint16_t args_cnt) {
-  assert(args_cnt == 1);
-  assert(JVAL_IS_NUMBER(&args_p[0]));
 
-  int module_kind = JVAL_TO_INT32(&args_p[0]);
+// Calls next tick callbacks registered via `process.nextTick()`.
+void OnNextTick() {
+  Module* module = GetBuiltinModule(MODULE_PROCESS);
+  assert(module != NULL);
+
+  JObject* process = module->module;
+  assert(process != NULL);
+  assert(process->IsObject());
+
+  JObject jon_next_tick = process->GetProperty("_onNextTick");
+  assert(jon_next_tick.IsFunction());
+
+  jon_next_tick.Call(JObject::Null(), JArgList::Empty());
+}
+
+
+// Make a callback for the given `function` with `this_` binding and `args`
+// arguments. The next tick callbacks registered via `process.nextTick()`
+// will be called after the callback function `function` returned.
+JObject MakeCallback(JObject& function, JObject& this_, JArgList& args) {
+  // Calls back the function.
+  JObject res = function.Call(this_, args);
+
+  // Calls the next tick callbacks.
+  OnNextTick();
+
+  // Return value.
+  return res;
+}
+
+
+JHANDLER_FUNCTION(Binding, handler) {
+  assert(handler.GetArgLength() == 1);
+  assert(handler.GetArg(0)->IsNumber());
+
+  int module_kind = handler.GetArg(0)->GetInt32();
+
   Module* module = GetBuiltinModule(static_cast<ModuleKind>(module_kind));
 
   if (module->module == NULL) {
     module->module = module->fn_register();
   }
 
-  module->module->Ref();
-
-  *ret_val_p = module->module->val();
+  handler.Return(*module->module);
 
   return true;
 }
 
-static bool Compile(const jerry_api_object_t *function_obj_p,
-                     const jerry_api_value_t *this_p,
-                     jerry_api_value_t *ret_val_p,
-                     const jerry_api_value_t args_p [],
-                     const uint16_t args_cnt) {
-  assert(args_cnt == 1);
-  assert(JVAL_IS_STRING(&args_p[0]));
-  int len = -GetJerryStringLength(&args_p[0]);
-  char* code = AllocCharBuffer(len+1);
-  jerry_api_string_to_char_buffer(args_p[0].v_string, code, len+1);
+JHANDLER_FUNCTION(Compile, handler){
+  assert(handler.GetArgLength() == 1);
+  assert(handler.GetArg(0)->IsString());
 
-  jerry_api_eval(code,sizeof(code),true,false,ret_val_p);
-  ReleaseCharBuffer(code);
+  char* code = handler.GetArg(0)->GetCString();
+  jerry_api_value_t ret_val;
+  jerry_api_eval(code,sizeof(code),true,false,&ret_val);
+  JObject::ReleaseCString(code);
+
+  JObject ret(&ret_val);
+  handler.Return(ret);
+
   return true;
 }
 
-static bool ReadSource(const jerry_api_object_t *function_obj_p,
-                        const jerry_api_value_t *this_p,
-                        jerry_api_value_t *ret_val_p,
-                        const jerry_api_value_t args_p [],
-                        const uint16_t args_cnt) {
-  assert(args_cnt == 1);
-  assert(JVAL_IS_STRING(&args_p[0]));
+JHANDLER_FUNCTION(ReadSource, handler){
+  assert(handler.GetArgLength() == 1);
+  assert(handler.GetArg(0)->IsString());
 
-  char buf[128];
-  int len = -GetJerryStringLength(&args_p[0]);
-  jerry_api_string_to_char_buffer(args_p[0].v_string, buf, len);
+  char* code = ReadFile(handler.GetArg(0)->GetCString());
+  JObject ret(code);
+  handler.Return(ret);
 
-  char* code = ReadFile(buf);
-  JObject ret_obj(code,false);
-  *ret_val_p = ret_obj.val();
-  ReleaseCharBuffer(code);
+  JObject::ReleaseCString(code);
   return true;
 }
 
 void SetNativeSources(JObject* native_sources) {
   for (int i = 0; natives[i].name; i++) {
     JObject native_source(natives[i].source);
-    native_sources->SetProperty(natives[i].name, &native_source);
+    native_sources->SetProperty(natives[i].name, native_source);
   }
 }
 
@@ -91,19 +110,16 @@ JObject* InitProcess() {
 
   if (process == NULL) {
     process = new JObject();
-    process->CreateMethod("binding", Binding);
-    process->CreateMethod("compile", Compile);
-    process->CreateMethod("readSource", ReadSource);
+    process->SetMethod("binding", Binding);
+    process->SetMethod("compile", Compile);
+    process->SetMethod("readSource", ReadSource);
 
     // process.native_sources
     JObject native_sources;
     SetNativeSources(&native_sources);
-    process->SetProperty("native_sources", &native_sources);
+    process->SetProperty("native_sources", native_sources);
 
     module->module = process;
-
-    JObject global(GetGlobal());
-    global.SetProperty("process", process);
   }
 
   return process;

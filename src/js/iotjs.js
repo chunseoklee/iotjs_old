@@ -15,10 +15,51 @@
 
 (function(process) {
   this.global = this;
+  global.process = process;
 
   function start_iotjs() {
+    init_process();
     var module = Native.require('module');
     module.runMain();
+  };
+
+  function init_process() {
+
+    initNextTick();
+
+    function initNextTick() {
+      var nextTickQueue = [];
+
+      process.nextTick = nextTick;
+      process._onNextTick = _onNextTick;
+
+      function _onNextTick() {
+        // clone nextTickQueue to new array object, and calles function
+        // iterating the cloned array. This is becuase,
+        // during processing nextTick
+        // a callback could add another next tick callback using
+        // `process.nextTick()`, if we calls back iterating original
+        // `nextTickQueue` that could turn into infinify loop.
+
+        // FIXME: var callbacks = nextTickQueue.slice(0);
+        var callbacks = [];
+        for (var i = 0; i < nextTickQueue.length; ++i) {
+          callbacks.push(nextTickQueue[i]);
+        }
+        nextTickQueue = [];
+
+        for (var i = 0; i < callbacks.length; ++i) {
+          var callback = callbacks[i];
+          callback();
+        }
+      }
+
+      function nextTick(callback) {
+        //if (util.isFunction(callback)) {
+          nextTickQueue.push(callback);
+        //}
+      }
+    }
   };
 
   function Native(id) {
@@ -61,4 +102,5 @@
   };
 
   start_iotjs();
+
 });
