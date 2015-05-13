@@ -54,7 +54,7 @@ static bool Compile(const jerry_api_object_t *function_obj_p,
   char* code = AllocCharBuffer(len+1);
   jerry_api_string_to_char_buffer(args_p[0].v_string, code, len+1);
 
-  jerry_api_eval(code,sizeof(code),false,false,ret_val_p);
+  jerry_api_eval(code,sizeof(code),true,false,ret_val_p);
   ReleaseCharBuffer(code);
   return true;
 }
