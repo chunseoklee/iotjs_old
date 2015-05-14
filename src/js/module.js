@@ -29,7 +29,6 @@ Module.load = function(id,isMain) {
   if(process.native_sources[id]){
     return Native.require(id);
   }
-
   var module = new Module(id);
   if(isMain){
     module.id = 'main';
@@ -44,6 +43,7 @@ Module.load = function(id,isMain) {
 
 Module.runMain = function(){
   Module.load(process.argv[1],true);
+  process._onNextTick();
 };
 
 Module.prototype.require = function(id) {

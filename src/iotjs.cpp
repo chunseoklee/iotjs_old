@@ -35,7 +35,6 @@ namespace iotjs {
 
 
 static bool InitJerry(char* src) {
-  //char* src = ReadFile(src_path);
 
   jerry_init(JERRY_FLAG_EMPTY);
 
@@ -49,8 +48,6 @@ static bool InitJerry(char* src) {
     return false;
   }
 
-  //ReleaseCharBuffer(src);
-
   return true;
 }
 
@@ -60,43 +57,35 @@ static void ReleaseJerry() {
 }
 
 
-static void InitModules() {
+static JObject* InitModules() {
   InitModuleList();
-  InitProcess();
+  return InitProcess();
 }
+
 
 static void CleanupModules() {
   CleanupModuleList();
 }
 
-static bool InitIoTjs(char* filename) {
+static bool InitIoTjs(JObject* process) {
 
-  jerry_api_value_t retval_p;
+  jerry_api_value_t retval;
   jerry_api_eval(mainjs,mainjs_length,
-                 false, false, &retval_p);
-  JObject global(GetGlobal());
+                 false, false, &retval);
+  JObject iotjs_fun(&retval, true);
+  JArgList args(1);
+  args.Add(*process);
+  JObject global(JObject::Global());
+  iotjs_fun.Call(global, args);
 
-  JObject process = global.GetProperty("process");
-
-  // save user-given js filename in process.argv[1]
-  JObject argv;
-  JObject user_filename(filename);
-  SetObjectField(argv.val().v_object, "1", &(user_filename.val()));
-  SetObjectField(process.val().v_object, "argv", &(argv.val()));
-
-  JObject iotjs_fun(&retval_p, true);
-  JObject *args[] = { &process };
-  args[0] = &process;
-  iotjs_fun.Call(&global, (JObject**)&args, 1);
-
-  return 1;
+  return true;
 }
 
-static bool StartIoTjs(char* filename) {
+static bool StartIoTjs(JObject* process) {
   bool is_ok;
 
   // Get jerry global object.
-  JObject global(GetGlobal());
+  JObject global = JObject::Global();
 
   // Create environtment.
   Environment env(uv_default_loop());
@@ -104,14 +93,17 @@ static bool StartIoTjs(char* filename) {
   // Bind environment to global object.
   global.SetNative((uintptr_t)(&env));
 
-
   // Call the entry.
   // load and call iotjs.js
-  InitIoTjs(filename);
+  InitIoTjs(process);
 
   bool more;
   do {
     more = uv_run(env.loop(), UV_RUN_ONCE);
+    if (more == false) {
+      OnNextTick();
+      more = uv_loop_alive(env.loop());
+    }
   } while (more);
 
   return true;
@@ -124,9 +116,17 @@ int Start(char* src) {
     return 1;
   }
 
-  InitModules();
+  JObject* process = InitModules();
 
-  if (!StartIoTjs(src)) {
+  // FIXME: this should be moved to seperate function
+  {
+    JObject argv;
+    JObject user_filename(src);
+    argv.SetProperty("1", user_filename);
+    process->SetProperty("argv", argv);
+  }
+
+  if (!StartIoTjs(process)) {
     fprintf(stderr, "StartIoTJs failed\n");
     return 1;
   }
@@ -137,6 +137,7 @@ int Start(char* src) {
 
   return 0;
 }
+
 
 } // namespace iotjs
 
