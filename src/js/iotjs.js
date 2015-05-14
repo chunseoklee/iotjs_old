@@ -55,9 +55,8 @@
       }
 
       function nextTick(callback) {
-        //if (util.isFunction(callback)) {
-          nextTickQueue.push(callback);
-        //}
+        nextTickQueue.push(callback);
+
       }
     }
   };

@@ -93,7 +93,6 @@ static bool StartIoTjs(JObject* process) {
   // Bind environment to global object.
   global.SetNative((uintptr_t)(&env));
 
-
   // Call the entry.
   // load and call iotjs.js
   InitIoTjs(process);
@@ -118,12 +117,14 @@ int Start(char* src) {
   }
 
   JObject* process = InitModules();
-  // save user-given js filename in process.argv[1]
-  // FIXME: move process.XXX part to seperate function
-  JObject argv;
-  JObject user_filename(src);
-  argv.SetProperty("1", user_filename);
-  process->SetProperty("argv", argv);
+
+  // FIXME: this should be moved to seperate function
+  {
+    JObject argv;
+    JObject user_filename(src);
+    argv.SetProperty("1", user_filename);
+    process->SetProperty("argv", argv);
+  }
 
   if (!StartIoTjs(process)) {
     fprintf(stderr, "StartIoTJs failed\n");
