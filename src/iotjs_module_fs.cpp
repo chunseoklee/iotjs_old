@@ -142,15 +142,28 @@ JHANDLER_FUNCTION(Open, handler) {
 }
 
 JObject MakeStatObject(uv_stat_t* statbuf) {
-  JObject statobj;
+
 
 #define X(name)                              \
   JObject name((int32_t)statbuf->st_##name);        \
-  statobj.SetProperty( #name , name);        \
 
+  X(dev)
   X(mode)
+  X(size)
 
 #undef X
+
+  JObject empty_this;
+  Environment* env = Environment::GetEnv();
+  JObject* sc = env->statConstructor();
+
+  JArgList args(3);
+  args.Add(dev);
+  args.Add(mode);
+  args.Add(size);
+
+
+  JObject statobj(sc->Call(empty_this, args));
 
   return statobj;
 }
@@ -190,7 +203,8 @@ JHANDLER_FUNCTION(Stat, handler) {
     uv_fs_t fs_req;
     int err = uv_fs_stat(env->loop(), &fs_req, path, NULL);
     if (err < 0) {
-      JERRY_THROW("stat sync failed!");
+      //JERRY_THROW("stat sync failed!");
+      return false;
     } else {
       uv_stat_t* s = &(fs_req.statbuf);
       JObject ret(MakeStatObject(s));
@@ -198,6 +212,27 @@ JHANDLER_FUNCTION(Stat, handler) {
     }
   }
   JObject::ReleaseCString(path);
+
+  return true;
+}
+
+
+JHANDLER_FUNCTION(SetStatConstructor, handler) {
+  int argc = handler.GetArgLength();
+
+  if (argc < 1) {
+    JERRY_THROW("type error: constructor function required");
+  }
+
+  if (!handler.GetArg(0)->IsFunction()) {
+    JERRY_THROW("type error: argument 0 must be a function");
+  }
+
+  JObject global = JObject::Global();
+  Environment* env = Environment::GetEnv();
+
+  JObject* statConstructor = new JObject(*handler.GetArg(0));
+  env->SetStatConstructor(statConstructor);
 
   return true;
 }
@@ -211,7 +246,7 @@ JObject* InitFs() {
     fs = new JObject();
     fs->SetMethod("open", Open);
     fs->SetMethod("stat", Stat);
-
+    fs->SetMethod("setStatConstructor", SetStatConstructor);
     module->module = fs;
   }
 

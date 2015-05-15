@@ -15,7 +15,7 @@
 
 
 var Native = require('native');
-
+var fs = Native.require('fs');
 
 function Module(id) {
   this.id = id;
@@ -30,19 +30,61 @@ Module.wrapper = Native.wrapper;
 Module.wrap = Native.wrap;
 
 
+Module.resolveModPath = function(id) {
+
+  // 1. 'id'
+  var filepath = Module.tryPath(id);
+
+  if(filepath){
+    return filepath;
+  }
+
+  // 2. 'id.js'
+  filepath = Module.tryPath(id+'.js');
+
+  if(filepath){
+    return filepath;
+  }
+
+  return false;
+};
+
+
+Module.tryPath = function(path) {
+  var stats = Module.statPath(path);
+  if(stats && !stats.isDirectory()) {
+    return path;
+  }
+  else {
+    return false;
+  }
+};
+
+
+Module.statPath = function(path) {
+  try {
+    return fs.statSync(path);
+  } catch (ex) {}
+  return false;
+};
+
+
 Module.load = function(id,isMain) {
   if(process.native_sources[id]){
     return Native.require(id);
   }
   var module = new Module(id);
-  if(isMain){
-    module.id = 'main';
-    module.filename = id;
+
+  var modPath = Module.resolveModPath(module.id);
+
+  // FIXME: handle the case of no module named 'id' or 'id.js'.
+  if(modPath) {
+    var source = process.readSource(modPath);
+    source = Module.wrap(source);
+    var fn = process.compile(source);
+    fn(module.exports, module.require, module);
   }
-  var source = process.readSource(module.filename);
-  source = Module.wrap(source);
-  var fn = process.compile(source);
-  fn(module.exports, module.require, module);
+
   return module.exports;
 };
 

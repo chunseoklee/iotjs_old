@@ -13,11 +13,36 @@
  * limitations under the License.
  */
 
-var binding = process.binding(2); // binding('fs')
+var fsBuiltin = process.binding(process.binding.fs);
 var fs = exports;
 var buffer = require('buffer').Buffer;
 var util = require('util');
 
+var S_IFMT = 61440;  // octat 170000
+var S_IFDIR = 16384; // octat  40000
+
+
 fs.statSync = function(path) {
-  return binding.stat(path);
+  return fsBuiltin.stat(path);
 };
+
+
+fs.Stats = function(dev,
+                    mode,
+                    size) {
+  this.dev = dev;
+  this.mode = mode;
+  this.size = size;
+
+};
+
+fs.Stats.prototype.isDirectory = function() {
+  return ((this.mode & S_IFMT) === S_IFDIR);
+};
+
+fs.createStat = function(dev, mode, size) {
+  var statobj = new fs.Stats(dev, mode, size);
+  return statobj;
+};
+
+fsBuiltin.setStatConstructor(fs.createStat);

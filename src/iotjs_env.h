@@ -29,13 +29,16 @@ class ReqWrap;
 class Environment {
  public:
   Environment(uv_loop_t* loop);
-
+  ~Environment() { delete _statConstructor; }
   static Environment* GetEnv();
 
   uv_loop_t* loop() { return _loop; }
+  JObject* statConstructor() { return _statConstructor; }
+  void SetStatConstructor(JObject* cons) { _statConstructor = cons; }
 
  private:
   uv_loop_t* _loop;
+  JObject* _statConstructor;
 }; // class Environment
 
 } // namespace iotjs

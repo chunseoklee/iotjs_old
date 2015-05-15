@@ -13,10 +13,11 @@
  * limitations under the License.
  */
 
+
 var fs = require('buffer');
 var util = require('util');
 
-var x = require("require_add");
+var x = require("require_add.js");
 print("require_add: " + x.add(1,4));
 process.nextTick(function(){print("nextTick works!");});
 
@@ -25,4 +26,3 @@ var json = process.JSONParse(str);
 print("package.json src:");
 print(str);
 print("package.json main: " + json.main);
-
