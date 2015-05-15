@@ -141,6 +141,67 @@ JHANDLER_FUNCTION(Open, handler) {
   return true;
 }
 
+JObject MakeStatObject(uv_stat_t* statbuf) {
+  JObject statobj;
+
+#define X(name)                              \
+  JObject name((int32_t)statbuf->st_##name);        \
+  statobj.SetProperty( #name , name);        \
+
+  X(mode)
+
+#undef X
+
+  return statobj;
+}
+
+
+JHANDLER_FUNCTION(Stat, handler) {
+  int argc = handler.GetArgLength();
+
+  if (argc < 1) {
+    JERRY_THROW("type error: path required");
+  }
+  if (!handler.GetArg(0)->IsString()) {
+    JERRY_THROW("type error: path must be a string");
+  }
+
+  Environment* env = Environment::GetEnv();
+
+  char* path = handler.GetArg(0)->GetCString();
+
+  if (argc > 1 && handler.GetArg(1)->IsFunction()) {
+    JObject* jcallback = handler.GetArg(1);
+
+    FsReqWrap* req_wrap = new FsReqWrap();
+    req_wrap->set_callback(*jcallback);
+
+    uv_fs_t* fs_req = req_wrap->data();
+
+    int err = uv_fs_stat(env->loop(), fs_req, path, After);
+    req_wrap->Dispatched();
+    if (err < 0) {
+      fs_req->result = err;
+      After(fs_req);
+    }
+
+    handler.Return(JObject::Null());
+  } else {
+    uv_fs_t fs_req;
+    int err = uv_fs_stat(env->loop(), &fs_req, path, NULL);
+    if (err < 0) {
+      JERRY_THROW("stat sync failed!");
+    } else {
+      uv_stat_t* s = &(fs_req.statbuf);
+      JObject ret(MakeStatObject(s));
+      handler.Return(ret);
+    }
+  }
+  JObject::ReleaseCString(path);
+
+  return true;
+}
+
 
 JObject* InitFs() {
   Module* module = GetBuiltinModule(MODULE_FS);
@@ -149,6 +210,7 @@ JObject* InitFs() {
   if (fs == NULL) {
     fs = new JObject();
     fs->SetMethod("open", Open);
+    fs->SetMethod("stat", Stat);
 
     module->module = fs;
   }
