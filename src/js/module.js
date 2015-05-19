@@ -17,10 +17,15 @@
 var Native = require('native');
 var fs = Native.require('fs');
 
-function Module(id) {
+function Module(id, parent) {
   this.id = id;
   this.exports = {};
-  this.filename = id + ".js";
+  this.filename = null;
+  this.parent = parent;
+  if(parent && parent.chidren){
+    parent.chidren.push(this);
+  }
+  this.chidren = [];
 };
 
 module.exports = Module;
@@ -30,17 +35,84 @@ Module.wrapper = Native.wrapper;
 Module.wrap = Native.wrap;
 
 
-Module.resolveModPath = function(id) {
+var moduledirs = [ process.env.HOME + "/.iotjs_module/", process.cwd()+"/"];
 
-  // 1. 'id'
-  var filepath = Module.tryPath(id);
-
-  if(filepath){
-    return filepath;
+Module.concatdir = function(a, b){
+  var rlist = [];
+  for(var i = 0; i< a.length ; i++) {
+    rlist.push(a[i]);
   }
 
-  // 2. 'id.js'
-  filepath = Module.tryPath(id+'.js');
+  for(var i = 0; i< b.length ; i++) {
+    rlist.push(b[i]);
+  }
+
+  return rlist;
+};
+
+
+Module.resolveDirectories = function(id, parent) {
+
+  if((id[0] != '.' || id[1] != '.') && (id[0] != '.' || id[1] != '/')) {
+    var dirs = moduledirs;
+    if(parent) {
+      if(!parent.dirs){
+        parent.dirs = [];
+      }
+      dirs = Module.concatdir(parent.dirs, dirs);
+    }
+    return dirs;
+  }
+
+  if(!parent){
+    var newdirs = Module.concatdir(["./"], moduledirs);
+    return newdirs;
+  }
+
+
+  return moduledirs;
+};
+
+
+Module.resolveFilepath = function(id, directories) {
+
+  for(var i = 0; i<directories.length ; i++) {
+    var dir = directories[i];
+    // 1. 'id'
+    var filepath = Module.tryPath(dir+id);
+
+    if(filepath){
+      return filepath;
+    }
+
+    // 2. 'id.js'
+    filepath = Module.tryPath(dir+id+'.js');
+
+    if(filepath){
+      return filepath;
+    }
+
+    // 3. package path $HOME/.iotjs_module/id
+    var packagepath = dir + id;
+    var jsonpath = packagepath + "/package.json";
+    filepath = Module.tryPath(jsonpath);
+    if(filepath){
+      var pkgSrc = process.readSource(jsonpath);
+      var pkgMainFile = process.JSONParse(pkgSrc).main;
+      return packagepath + "/" + pkgMainFile;
+    }
+  }
+
+  return false;
+};
+
+
+Module.resolveModPath = function(id, parent) {
+
+  // 0. resolve Directory for lookup
+  var directories = Module.resolveDirectories(id, parent);
+
+  var filepath = Module.resolveFilepath(id, directories);
 
   if(filepath){
     return filepath;
@@ -69,32 +141,59 @@ Module.statPath = function(path) {
 };
 
 
-Module.load = function(id,isMain) {
+Module.load = function(id, parent, isMain) {
+
   if(process.native_sources[id]){
     return Native.require(id);
   }
-  var module = new Module(id);
 
-  var modPath = Module.resolveModPath(module.id);
+  var module = new Module(id, parent);
 
-  // FIXME: handle the case of no module named 'id' or 'id.js'.
+  var modPath = Module.resolveModPath(module.id, module.parent);
+
+
   if(modPath) {
-    var source = process.readSource(modPath);
-    source = Module.wrap(source);
-    var fn = process.compile(source);
-    fn(module.exports, module.require, module);
+    module.filename = modPath;
+    module.SetModuleDirs(modPath);
+    module.compile();
   }
 
   return module.exports;
 };
 
+Module.prototype.compile = function() {
+
+  var source = process.readSource(this.filename);
+  source = Module.wrap(source);
+  var fn = process.compile(source);
+  fn.call(this, this.exports, this.require, this);
+};
+
 
 Module.runMain = function(){
-  Module.load(process.argv[1],true);
+  Module.load(process.argv[1], null, true);
   process._onNextTick();
 };
 
 
+Module.prototype.SetModuleDirs = function(filepath)
+{
+  var dir = "";
+  var i;
+  for(i = filepath.length-1;i>=0 ; i--) {
+    if(filepath[i] == '/'){
+      break;
+    }
+  }
+
+  // save filepath[0] to filepath[i]
+  // e.g. /home/foo/main.js ->  /home/foo/
+  for(;i>=0 ; i--) {
+    dir = filepath[i] + dir;
+  }
+  this.dirs = [dir];
+};
+
 Module.prototype.require = function(id) {
-  return Module.load(id);
+  return Module.load(id, this);
 };

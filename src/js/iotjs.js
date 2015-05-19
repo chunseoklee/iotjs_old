@@ -18,7 +18,6 @@
   this.global = this;
   global.process = process;
 
-
   function start_iotjs() {
     init_global();
 
@@ -107,15 +106,16 @@
 
 
   Native.wrap = function(script) {
-    var temp1 = Native.wrapper[0] + script;
-    temp1 = temp1 + Native.wrapper[1];
+    var temp1 = Native.wrapper[0] + Native.wrapper[1] + script;
+    temp1 = temp1 + Native.wrapper[2];
     return temp1;
   };
 
 
   Native.wrapper = [
-    '(function (a, b, c) { function wwwwrap(exports, require, module) {',
-    ' }; wwwwrap(a, b, c); });'
+    '(function (a, b, c) { ',
+    'function wwwwrap(exports, require, module) {',
+    ' }; wwwwrap.call(this, a, b, c); });'
   ];
 
 
