@@ -112,10 +112,12 @@ static void After(uv_fs_t* req) {
   if (err < 0) { \
     JObject jerror(CreateUVException(err, #syscall)); \
     handler.Throw(jerror); \
-  } else { \
+  } \
+
+  /*else {                                      \
     JObject ret(err);\
     handler.Return(ret); \
-  } \
+    } \*/
 
 
 JHANDLER_FUNCTION(Open, handler) {
@@ -268,6 +270,10 @@ JHANDLER_FUNCTION(Stat, handler) {
 
     handler.Return(JObject::Null());
   } else {
+    /*FS_SYNC(env, stat, path);
+    uv_stat_t* s = &(fs_req.statbuf);
+    JObject ret(MakeStatObject(s));
+    handler.Return(ret);*/
     uv_fs_t fs_req;
     int err = uv_fs_stat(env->loop(), &fs_req, path, NULL);
     if (err < 0) {
@@ -313,9 +319,9 @@ JObject* InitFs() {
   if (fs == NULL) {
     fs = new JObject();
     fs->SetMethod("open", Open);
+    fs->SetMethod("read", Read);
     fs->SetMethod("stat", Stat);
     fs->SetMethod("setStatConstructor", SetStatConstructor);
-    fs->SetMethod("read", Read);
 
     module->module = fs;
   }
