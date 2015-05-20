@@ -18,6 +18,7 @@
 #include "iotjs_module.h"
 #include "iotjs_module_buffer.h"
 #include "iotjs_module_console.h"
+#include "iotjs_module_constants.h"
 #include "iotjs_module_fs.h"
 #include "iotjs_module_process.h"
 #include "iotjs_module_timer.h"
@@ -33,6 +34,12 @@ static Module _modules[MODULE_COUNT];
   _modules[MODULE_ ## upper].module = NULL; \
   _modules[MODULE_ ## upper].fn_register = Init ## Camel;
 
+void InitModuleList() {
+  MAP_MODULE_LIST(INIT_MODULE_LIST)
+}
+
+#undef INIT_MODULE_LIST
+
 
 #define CLENUP_MODULE_LIST(upper, Camel, lower) \
   if (_modules[MODULE_ ## upper].module) \
@@ -40,22 +47,11 @@ static Module _modules[MODULE_COUNT];
   _modules[MODULE_ ## upper].module = NULL;
 
 
-#define MAP_MODULE_LIST(F) \
-  F(BUFFER, Buffer, buffer) \
-  F(CONSOLE, Console, console) \
-  F(FS, Fs, fs) \
-  F(PROCESS, Process, process) \
-  F(TIMER, Timer, timer)
-
-
-void InitModuleList() {
-  MAP_MODULE_LIST(INIT_MODULE_LIST)
-}
-
-
 void CleanupModuleList() {
   MAP_MODULE_LIST(CLENUP_MODULE_LIST)
 }
+
+#undef CLENUP_MODULE_LIST
 
 
 Module* GetBuiltinModule(ModuleKind kind) {
