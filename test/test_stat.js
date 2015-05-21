@@ -55,3 +55,26 @@ try{ // fs.statSync throw ex for non-existing file
 catch(ex){
   print("but, failed.");
 }
+
+function statcallback(err, statbuf) {
+  print("statcallback called");
+  if(err){
+    print("stat async call error");
+    return;
+  }
+
+  if(statbuf.isDirectory()){
+    print("async stat for test_stat.js is a directory");
+  }
+  else {
+    print("async stat for test_stat.js is not a directory");
+  }
+
+}
+
+try {
+  fs.stat('test_stat.js', statcallback);
+}
+catch(ex) {
+  print("stat async call error");
+}

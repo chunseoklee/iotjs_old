@@ -20,7 +20,7 @@
 #include "iotjs_module.h"
 #include "iotjs_module_fs.h"
 #include "iotjs_module_process.h"
-
+#include <cstdio>
 
 namespace iotjs {
 
@@ -112,12 +112,9 @@ static void After(uv_fs_t* req) {
   if (err < 0) { \
     JObject jerror(CreateUVException(err, #syscall)); \
     handler.Throw(jerror); \
+    return false;          \
   } \
 
-  /*else {                                      \
-    JObject ret(err);\
-    handler.Return(ret); \
-    } \*/
 
 
 JHANDLER_FUNCTION(Open, handler) {
@@ -254,35 +251,12 @@ JHANDLER_FUNCTION(Stat, handler) {
   char* path = handler.GetArg(0)->GetCString();
 
   if (argc > 1 && handler.GetArg(1)->IsFunction()) {
-    JObject* jcallback = handler.GetArg(1);
-
-    FsReqWrap* req_wrap = new FsReqWrap();
-    req_wrap->set_callback(*jcallback);
-
-    uv_fs_t* fs_req = req_wrap->data();
-
-    int err = uv_fs_stat(env->loop(), fs_req, path, After);
-    req_wrap->Dispatched();
-    if (err < 0) {
-      fs_req->result = err;
-      After(fs_req);
-    }
-
-    handler.Return(JObject::Null());
+    FS_ASYNC(env, stat, handler.GetArg(1), path);
   } else {
-    /*FS_SYNC(env, stat, path);
+    FS_SYNC(env, stat, path);
     uv_stat_t* s = &(fs_req.statbuf);
     JObject ret(MakeStatObject(s));
-    handler.Return(ret);*/
-    uv_fs_t fs_req;
-    int err = uv_fs_stat(env->loop(), &fs_req, path, NULL);
-    if (err < 0) {
-      return false;
-    } else {
-      uv_stat_t* s = &(fs_req.statbuf);
-      JObject ret(MakeStatObject(s));
-      handler.Return(ret);
-    }
+    handler.Return(ret);
   }
   JObject::ReleaseCString(path);
 
