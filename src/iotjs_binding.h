@@ -89,6 +89,10 @@ class JObject {
   static JObject TypeError(const char* message = NULL);
   static JObject URIError(const char* message = NULL);
 
+  // Wrapper for jerry_api_eval
+  static JObject Eval(const char* code, bool directmode = true,
+                      bool strictmode = false );
+
   // Destoyer for this class.
   // When the wrapper is being destroyed, ref count for correspoding javascript
   // object will be decreased unless `need_unref` was set false.

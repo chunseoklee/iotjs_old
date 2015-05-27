@@ -182,6 +182,14 @@ JObject JObject::URIError(const char* message) {
   return JObject(jerry_api_create_error(JERRY_API_ERROR_URI, message));
 }
 
+JObject JObject::Eval(const char* code, bool directmode,
+                      bool strictmode) {
+  JRawValueType ret_val;
+  jerry_api_eval(code, sizeof(code), directmode, strictmode, &ret_val);
+  return JObject(&ret_val);
+}
+
+
 
 void JObject::SetMethod(const char* name, JHandlerType handler) {
   assert(IsObject());
