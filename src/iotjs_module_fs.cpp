@@ -20,6 +20,7 @@
 #include "iotjs_module_fs.h"
 #include "iotjs_module_process.h"
 #include "iotjs_reqwrap.h"
+#include <cstring>
 
 namespace iotjs {
 
@@ -206,6 +207,103 @@ JHANDLER_FUNCTION(Read, handler) {
   return !handler.HasThrown();
 }
 
+
+JHANDLER_FUNCTION(writeBuffer, handler) {
+  int argc = handler.GetArgLength();
+
+  if (argc < 1) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "fd required");
+  } else if (argc < 2) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "buffer required");
+  } else if (argc < 3) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "offset required");
+  } else if (argc < 4) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "length required");
+  } else if (argc < 5) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "position required");
+  }
+
+  if (!handler.GetArg(0)->IsNumber()) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "fd must be an int");
+  } else if (!handler.GetArg(1)->IsObject()) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "buffer must be a Buffer");
+  } else if (!handler.GetArg(2)->IsNumber()) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "offset must be an int");
+  } else if (!handler.GetArg(3)->IsNumber()) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "length must be an int");
+  } else if (!handler.GetArg(4)->IsNumber()) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "position must be an int");
+  }
+
+  Environment* env = Environment::GetEnv();
+
+  int fd = handler.GetArg(0)->GetInt32();
+  int offset = handler.GetArg(2)->GetInt32();
+  int length = handler.GetArg(3)->GetInt32();
+  int position = handler.GetArg(4)->GetInt32();
+
+  JObject* jbuffer = handler.GetArg(1);
+  char* buffer = reinterpret_cast<char*>(jbuffer->GetNative());
+  int buffer_length = jbuffer->GetProperty("length").GetInt32();
+
+  if (offset >= buffer_length) {
+    JHANDLER_THROW_RETURN(handler, RangeError, "offset out of bound");
+  }
+  if (offset + length > buffer_length) {
+    JHANDLER_THROW_RETURN(handler, RangeError, "length out of bound");
+  }
+
+  uv_buf_t uvbuf = uv_buf_init(buffer + offset, length);
+
+  if (argc > 5 && handler.GetArg(5)->IsFunction()) {
+    FS_ASYNC(env, write, handler.GetArg(5), fd, &uvbuf, 1, position);
+  } else {
+    FS_SYNC(env, write, fd, &uvbuf, 1, position);
+    JObject ret(err);
+    handler.Return(ret);
+  }
+
+  return !handler.HasThrown();
+}
+
+JHANDLER_FUNCTION(writeString, handler) {
+  int argc = handler.GetArgLength();
+
+  if (argc < 1) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "fd required");
+  } else if (argc < 2) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "string required");
+  }
+
+  if (!handler.GetArg(0)->IsNumber()) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "fd must be an int");
+  } else if (!handler.GetArg(1)->IsString()) {
+    JHANDLER_THROW_RETURN(handler, TypeError, "string must be a string");
+  }
+
+  Environment* env = Environment::GetEnv();
+
+  int fd = handler.GetArg(0)->GetInt32();
+  int position = handler.GetArg(2)->IsNumber();
+
+  JObject* jstring = handler.GetArg(1);
+  char* cstring = jstring->GetCString();
+
+
+  uv_buf_t uvbuf = uv_buf_init(cstring, strlen(cstring));
+
+  if (handler.GetArg(4)->IsFunction()) {
+    FS_ASYNC(env, write, handler.GetArg(4), fd, &uvbuf, 1, position);
+  } else {
+    FS_SYNC(env, write, fd, &uvbuf, 1, position);
+    JObject ret(err);
+    handler.Return(ret);
+  }
+
+  return !handler.HasThrown();
+}
+
+
 JObject MakeStatObject(uv_stat_t* statbuf) {
 
 
@@ -291,6 +389,8 @@ JObject* InitFs() {
     fs->SetMethod("open", Open);
     fs->SetMethod("read", Read);
     fs->SetMethod("stat", Stat);
+    fs->SetMethod("writeBuffer", writeBuffer);
+    fs->SetMethod("writeString", writeString);
 
     module->module = fs;
   }

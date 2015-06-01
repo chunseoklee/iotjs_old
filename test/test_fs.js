@@ -68,3 +68,62 @@ try {
 catch(err) {
    console.log(err.message);
 }
+
+try {
+  var fd = fs.openSync("output.txt", "w", 438);
+  var buffer = new Buffer(17);
+  buffer.write("writeBuffer test1");
+  var str = fs.writeSync(fd, buffer, 0, 17, 0);
+  console.log("openSync->writeSync succeed");
+}
+catch(err) {
+   console.log(err.message);
+}
+
+
+var onWrite = function(err, fd, buffer) {
+  if (err) {
+    console.log(err.message);
+  } else {
+    console.log(buffer.toString());
+  }
+};
+
+var onWrite2 = function(err, fd, buffer) {
+  if (err) {
+    console.log(err.message);
+  } else {
+    console.log(buffer.toString());
+  }
+};
+
+try {
+  var fd = fs.openSync("output.txt", "w", 438);
+  var buffer = new Buffer(17);
+  buffer.write("writeBuffer test2");
+  var str = fs.write(fd, buffer, 0, 17, 0, onWrite);
+  console.log("openSync->writeAsync succeed");
+}
+catch(err) {
+   console.log(err.message);
+}
+
+try {
+  var fd = fs.openSync("output.txt", "w", 438);
+  var buffer = "writeString Sync test";
+  var str = fs.writeSync(fd, buffer, 0, 'ascii');
+  console.log("openSync->writeSync(writeString) succeed");
+}
+catch(err) {
+   console.log(err.message);
+}
+
+try {
+  var fd = fs.openSync("output.txt", "w", 438);
+  var buffer = "writeString Async test";
+  var str = fs.write(fd, buffer, 0, 'ascii', onWrite2);
+  console.log("openSync->writeASync(writeString) succeed");
+}
+catch(err) {
+   console.log(err.message);
+}

@@ -135,6 +135,53 @@ fs.readSync = function(fd, buffer, offset, length, position) {
 };
 
 
+
+fs.write = function(fd, buffer, offset, length, position, callback) {
+
+  if (util.isBuffer(buffer)) {
+    if (util.isUndefined(position))
+      position = null;
+
+    var cb_wrap = function(err, bytesRead) {
+      callback && callback(err, bytesRead || 0, buffer);
+    };
+
+    return fsBuiltin.writeBuffer(fd, buffer,
+                                 offset, length, position, cb_wrap);
+  }
+
+  if (!util.isFunction(position)) {
+    if (util.isFunction(offset)) {
+      position = offset;
+      offset = null;
+    } else {
+      position = length;
+    }
+    length = 'utf8';
+  }
+  var cb_wrap = function(err, bytesRead) {
+    position && position(err, bytesRead || 0, buffer);
+  };
+  return fsBuiltin.writeString(fd, buffer,
+                               offset, length, cb_wrap);
+
+};
+
+
+fs.writeSync = function(fd, buffer, offset, length, position) {
+  if (util.isBuffer(buffer)) {
+    if (util.isUndefined(position))
+      position = null;
+    return fsBuiltin.writeBuffer(fd, buffer, offset, length, position);
+  }
+  if (!util.isString(buffer))
+    buffer += '';
+  if (util.isUndefined(offset))
+    offset = null;
+  return fsBuiltin.writeString(fd, buffer, offset, length, position);
+};
+
+
 function convertFlags(flag) {
   if (!util.isString(flag)) {
     return flag;
