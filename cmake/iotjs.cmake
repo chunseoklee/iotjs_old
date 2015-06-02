@@ -21,7 +21,8 @@ set(LIB_IOTJS_INCDIR ${TARGET_INC}
                      ${INC_ROOT}
                      ${SRC_ROOT}
                      ${JERRY_INCDIR}
-                     ${LIBUV_INCDIR})
+                     ${LIBUV_INCDIR}
+                     ${HTTPPARSER_INCDIR})
 
 
 add_custom_target(targetLibIoTjs)
@@ -53,7 +54,8 @@ function(BuildIoTjs)
                PROPERTY LINK_FLAGS "${IOTJS_CFLAGS}")
   target_include_directories(${targetName} PRIVATE ${LIB_IOTJS_INCDIR})
   target_include_directories(${targetName} SYSTEM PRIVATE ${TARGET_INC})
-  target_link_libraries(${targetName} libiotjs ${JERRY_LIB} ${LIBUV_LIB})
+  target_link_libraries(${targetName} libiotjs ${JERRY_LIB}
+    ${LIBUV_LIB} ${HTTPPARSER_LIB})
   add_dependencies(targetLibIoTjs ${targetName})
 
 endfunction()
@@ -67,7 +69,8 @@ function(BuildIoTjsLib)
   set_property(TARGET ${targetName}
                PROPERTY LINK_FLAGS "${IOTJS_CFLAGS}")
   target_include_directories(${targetName} PRIVATE ${LIB_IOTJS_INCDIR})
-  target_link_libraries(${targetName} libiotjs ${JERRY_LIB} ${LIBUV_LIB})
+  target_link_libraries(${targetName} libiotjs ${JERRY_LIB}
+    ${LIBUV_LIB} ${HTTPPARSER_LIB})
   add_dependencies(targetLibIoTjs ${targetName})
 endfunction()
 
