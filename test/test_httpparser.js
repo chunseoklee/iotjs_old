@@ -98,7 +98,3 @@ Connection: close\r\n\
 \"areistss\"\r\n");
 
 parser_res.execute(buf_res);
-
-
-var ar = ["a", "b", "c"];
-console.log(ar.shift());

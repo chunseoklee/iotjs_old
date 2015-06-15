@@ -34,7 +34,7 @@ namespace iotjs {
   } while(0)
 
 
-#define HEADER_MAX 2
+#define HEADER_MAX 10
 
 
 struct StringHelper {
@@ -167,6 +167,7 @@ public:
       JObject f(fields[i].ToCString());
       jheader.SetProperty(index_string0, f);
       jheader.SetProperty(index_string1, v);
+
     }
     return jheader;
   }
@@ -202,6 +203,13 @@ public:
       JSETPROPERTY(info, "status", (int32_t)parser.status_code);
       JSETPROPERTY(info, "status_msg", status_msg.ToCString());
     }
+
+    // upgrade
+    JSETPROPERTY(info, "upgrade", parser.upgrade ? true : false);
+    // shouldkeepalive
+    JSETPROPERTY(info, "shouldkeepalive",
+                 http_should_keep_alive(&parser) ? true : false);
+
 
     argv.Add(info);
 
