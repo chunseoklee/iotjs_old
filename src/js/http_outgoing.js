@@ -50,3 +50,13 @@ util.inherits(OutgoingMessage, stream.Stream);
 
 
 exports.OutgoingMessage = OutgoingMessage;
+
+OutgoingMessage.prototype.end = function(data, encoding, callback) {
+  console.log(data);
+  this._finish();
+  return true;
+};
+
+OutgoingMessage.prototype._finish = function() {
+  this.emit('prefinish');
+};

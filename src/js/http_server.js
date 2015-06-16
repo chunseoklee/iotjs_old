@@ -82,6 +82,29 @@ var STATUS_CODES = exports.STATUS_CODES = {
 };
 
 
+// response to req
+function ServerResponse(req) {
+  OutgoingMessage.call(this);
+  // HEAD method has no body
+  if (req.method === 'HEAD') this._hasBody = false;
+}
+
+util.inherits(ServerResponse, OutgoingMessage);
+
+ServerResponse.prototype.assignSocket = function(socket) {
+  socket._httpMessage = this;
+  //socket.on('close', onServerResponseClose);
+  this.socket = socket;
+  this.connection = socket;
+  this.emit('socket', socket);
+  //this._flush();
+};
+
+ServerResponse.prototype.detachSocket = function(socket) {
+  //socket.removeListener('close', onServerResponseClose);
+  socket._httpMessage = null;
+  this.socket = this.connection = null;
+};
 
 function Server(requestListener) {
   if (!(this instanceof Server)) {
@@ -94,7 +117,10 @@ function Server(requestListener) {
     this.addListener('request', requestListener);
   }
 
-  this.addListener('connection', connectionListener);
+  this.on('connection', connectionListener);
+  this.on('clientError', function(err,conn) {
+    conn.destroy(err);
+  });
 
 }
 
@@ -124,23 +150,44 @@ function connectionListener(socket) {
   parser.OnMessageComplete = parserOnMessageComplete;
   parser.onIncoming = parserOnIncoming;
 
+  parser.socket = socket;
+  parser.incoming = null;
+  socket.parser = parser;
+
   socket.on("data", socketOnData);
   socket.on("end", socketOnEnd);
   socket.on("error", socketOnError);
+  socket.on("close", socketCloseListener);
 
-  function socketOnData(d) {
+  function socketOnData(data) {
     console.log("http_server on socket data");
-    console.log("data :" + d.toString());
+    //console.log("data :" + data.toString());
 
-    var ret = parser.execute(d);
+    var ret = parser.execute(data);
 
     if (ret instanceof Error) {
       socket.destroy();
     }
     else if (parser.incoming && parser.incoming.upgrade) {
+      console.log("upgrade or CONNECT");
       // Upgrade or CONNECT
       // TODO: fill this part
+      parser.finish();
+      parser = null;
     }
+  }
+
+  function socketCloseListener() {
+    // mark this parser as reusable
+    if (this.parser) {
+      parser = null;
+    }
+    while (incoming.length) {
+      var req = incoming.shift();
+      //req.emit('aborted');
+      req.emit('close');
+    }
+
   }
 
   function socketOnError(e) {
@@ -161,11 +208,30 @@ function connectionListener(socket) {
   }
 
   function parserOnIncoming(req, shouldKeepAlive) {
+
     incoming.push(req);
+
     console.log("time to response");
     if (shouldKeepAlive) {
-      console.log("wow must keep alive");
+      console.log("connection must keep alive");
     }
+
+    var res = new ServerResponse(req);
+
+    res.assignSocket(socket);
+
+    function resOnFinish() {
+      incoming.shift();
+      console.log("on pre finish");
+      res.detachSocket(socket);
+
+    }
+
+    res.on('prefinish', resOnFinish);
+
+    self.emit("request", req, res);
+
+
     return false;
   }
 
@@ -174,6 +240,9 @@ function connectionListener(socket) {
 
 
 function parserOnMessageComplete() {
+  console.log("on message complete");
+  var parser = this;
+  parser.socket.resume();
 }
 
 function parserOnHeadersComplete(info) {
@@ -192,10 +261,6 @@ function parserOnHeadersComplete(info) {
   }
 
   console.log("=== ===js header complete == \n");
-  /*console.log("url = " + url + "\n");
-  for(var i=0;i<headers.length;i++){
-    console.log(headers[i]);
-  }*/
 
   parser.incoming = new IncomingMessage(parser.socket);
   parser.incoming.url = url;
@@ -212,8 +277,9 @@ function parserOnHeadersComplete(info) {
 
 }
 
-function parserOnBody() {
-
+function parserOnBody(buf, start, len) {
+  console.log("on body");
+  console.log(buf.toString());
 }
 
 function AddHeader(dest, src) {

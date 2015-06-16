@@ -215,7 +215,7 @@ public:
 
     JObject ret(func.Call(jobj, argv));
 
-    return 0;
+    return ret.GetBoolean() ? 1 : 0;
   }
   int on_body_(const char* at, size_t length) {
     JObject jobj = jobject();

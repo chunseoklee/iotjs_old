@@ -41,3 +41,7 @@ function IncomingMessage(socket) {
 util.inherits(IncomingMessage, stream.ReadableStream);
 
 exports.IncomingMessage = IncomingMessage;
+
+IncomingMessage.prototype.end = function(data, callback) {
+  this.socket.end(data,callback);
+};

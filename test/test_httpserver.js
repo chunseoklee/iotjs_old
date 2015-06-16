@@ -14,31 +14,32 @@
  */
 
 
-var httpparser = process.binding(process.binding.httpparser).HTTPParser;
 var http = require('http');
 
-function handleRequest(request, response){
-    console.log('handleRequest called');
-}
+var server = http.createServer(function (req, res) {
+  // req is an http.IncomingMessage, which is a Readable Stream
+  // res is an http.ServerResponse, which is a Writable Stream
 
+  var body = '';
 
-
-var newserver = new http.createServer(handleRequest);
-
-newserver.setTimeout(1000, function(){
-  console.log("server timeouted");
-});
-
-newserver.on('connection', function(socket) {
-  socket.on('data', function(data) {
-    socket.end('I received : \n' + data.toString());
+  console.log("request handler is called");
+  //res.socket.write("arstsartartaatrs\n");
+  //res.socket.end();
+  //server.close();
+  req.on('data', function (chunk) {
+    console.log("on data");
+    body += chunk;
   });
-  socket.on('close', function() {
-    newserver.close();
+
+
+  req.on('end', function () {
+
+    // write back something interesting to the user:
+    res.write("we are done:"+ body + "\n");
+    res.end();
+
   });
+
 });
 
-
-newserver.listen(3001, 2, function(){
-  console.log("listening....");
-});
+server.listen(3001,1);
