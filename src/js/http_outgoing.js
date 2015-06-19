@@ -60,3 +60,18 @@ OutgoingMessage.prototype.end = function(data, encoding, callback) {
 OutgoingMessage.prototype._finish = function() {
   this.emit('prefinish');
 };
+
+OutgoingMessage.prototype._send = function(chunk, encoding, callback) {
+  this.connection.write(chunk, encoding, callback);
+};
+
+OutgoingMessage.prototype.write = function(chunk, encoding, callback) {
+  if (!this._hasBody) {
+    return true;
+  }
+
+  var ret = this._send(chunk, encoding, callback);
+
+  return ret;
+
+};

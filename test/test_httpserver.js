@@ -23,23 +23,23 @@ var server = http.createServer(function (req, res) {
   var body = '';
 
   console.log("request handler is called");
-  //res.socket.write("arstsartartaatrs\n");
-  //res.socket.end();
-  //server.close();
   req.on('data', function (chunk) {
-    console.log("on data");
     body += chunk;
+    res.write("on data's chunk : " + body.toString());
+
   });
 
-
   req.on('end', function () {
-
     // write back something interesting to the user:
     res.write("we are done:"+ body + "\n");
     res.end();
-
   });
+
 
 });
 
-server.listen(3001,1);
+server.listen(3001,1,cb);
+
+function cb(){
+  console.log("listening....");
+};

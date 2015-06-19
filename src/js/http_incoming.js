@@ -23,6 +23,8 @@ function IncomingMessage(socket) {
   this.socket = socket;
   this.connection = socket;
 
+  this.readable = true;
+
   this.headers = {};
 
   this.upgrade = null;
@@ -42,6 +44,11 @@ util.inherits(IncomingMessage, stream.ReadableStream);
 
 exports.IncomingMessage = IncomingMessage;
 
-IncomingMessage.prototype.end = function(data, callback) {
-  this.socket.end(data,callback);
+IncomingMessage.prototype.read = function(n) {
+  this.read = stream.ReadableStream.prototype.read;
+  return this.read(n);
 };
+
+/*IncomingMessage.prototype.end = function(data, callback) {
+  this.socket.end(data,callback);
+};*/

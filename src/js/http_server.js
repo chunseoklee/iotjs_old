@@ -163,8 +163,9 @@ function connectionListener(socket) {
     console.log("http_server on socket data");
     //console.log("data :" + data.toString());
 
+    console.log("-------------------------1---------");
     var ret = parser.execute(data);
-
+    console.log("-------------------------2---------");
     if (ret instanceof Error) {
       socket.destroy();
     }
@@ -195,6 +196,7 @@ function connectionListener(socket) {
   }
 
   function socketOnEnd() {
+    console.log("socken ended");
     var socket = this;
     var ret = parser.finish();
 
@@ -240,9 +242,21 @@ function connectionListener(socket) {
 
 
 function parserOnMessageComplete() {
-  console.log("on message complete");
   var parser = this;
-  parser.socket.resume();
+  var stream = parser.incoming;
+
+  if (stream) {
+    stream.complete = true;
+
+    if (!stream.upgrade){
+      // For upgraded connections, also emit this after parser.execute
+      stream.push(null);
+    }
+  }
+
+
+  // force to read the next incoming message
+  stream.readStart();
 }
 
 function parserOnHeadersComplete(info) {
@@ -260,7 +274,6 @@ function parserOnHeadersComplete(info) {
     parser._headers = {};
   }
 
-  console.log("=== ===js header complete == \n");
 
   parser.incoming = new IncomingMessage(parser.socket);
   parser.incoming.url = url;
@@ -278,8 +291,10 @@ function parserOnHeadersComplete(info) {
 }
 
 function parserOnBody(buf, start, len) {
-  console.log("on body");
-  console.log(buf.toString());
+  var parser = this;
+  var stream = parser.incoming;
+  stream.push("parsed body = "+buf);
+
 }
 
 function AddHeader(dest, src) {

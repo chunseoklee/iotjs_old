@@ -213,9 +213,9 @@ public:
 
     argv.Add(info);
 
-    JObject ret(func.Call(jobj, argv));
+    JResult jres(func.Call(jobj, argv));
 
-    return ret.GetBoolean() ? 1 : 0;
+    return jres.value().GetBoolean() ? 1 : 0;
   }
   int on_body_(const char* at, size_t length) {
     JObject jobj = jobject();
@@ -230,9 +230,10 @@ public:
     JObject leng((int)length);
     argv.Add(leng);
 
-    JObject ret(func.Call(jobj, argv));
+    JResult jres(func.Call(jobj, argv));
 
-    if(ret.IsNull()){
+
+    if(jres.value().IsNull()){
       had_exception = true;
       return false;
     }
@@ -244,9 +245,10 @@ public:
     JObject func = jobj.GetProperty("OnMessageComplete");
     assert(func.IsFunction());
 
-    JObject ret(func.Call(jobj, JArgList::Empty()));
 
-    if(ret.IsNull()){
+    JResult jres(func.Call(jobj, JArgList::Empty()));
+
+    if(jres.value().IsNull()){
       had_exception = true;
       return false;
     }
@@ -266,9 +268,10 @@ public:
     JObject jurl(url.ToCString());
     argv.Add(jurl);
 
-    JObject ret(func.Call(jobj, argv));
 
-    if(ret.IsNull()){
+    JResult jres(func.Call(jobj, argv));
+
+    if(jres.value().IsNull()){
       had_exception = true;
     }
 

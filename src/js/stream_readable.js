@@ -71,6 +71,7 @@ Readable.prototype.read = function(n) {
   }
 
   if (state.ended && state.length == 0) {
+    console.log("before emitEnd");
     emitEnd(this);
   }
 
@@ -169,6 +170,7 @@ function readBuffer(stream, n) {
 
 
 function emitEnd(stream) {
+  console.log("emitEnd");
   var state = stream._readableState;
 
   if (stream.length > 0 || !state.ended) {
