@@ -160,17 +160,12 @@ function connectionListener(socket) {
   socket.on("close", socketCloseListener);
 
   function socketOnData(data) {
-    console.log("http_server on socket data");
-    //console.log("data :" + data.toString());
-
-    console.log("-------------------------1---------");
     var ret = parser.execute(data);
-    console.log("-------------------------2---------");
+
     if (ret instanceof Error) {
       socket.destroy();
     }
     else if (parser.incoming && parser.incoming.upgrade) {
-      console.log("upgrade or CONNECT");
       // Upgrade or CONNECT
       // TODO: fill this part
       parser.finish();
@@ -196,7 +191,6 @@ function connectionListener(socket) {
   }
 
   function socketOnEnd() {
-    console.log("socken ended");
     var socket = this;
     var ret = parser.finish();
 
@@ -210,13 +204,7 @@ function connectionListener(socket) {
   }
 
   function parserOnIncoming(req, shouldKeepAlive) {
-
     incoming.push(req);
-
-    console.log("time to response");
-    if (shouldKeepAlive) {
-      console.log("connection must keep alive");
-    }
 
     var res = new ServerResponse(req);
 
@@ -224,9 +212,8 @@ function connectionListener(socket) {
 
     function resOnFinish() {
       incoming.shift();
-      console.log("on pre finish");
       res.detachSocket(socket);
-
+      socket.end(); // FIXME
     }
 
     res.on('prefinish', resOnFinish);
@@ -245,18 +232,13 @@ function parserOnMessageComplete() {
   var parser = this;
   var stream = parser.incoming;
 
-  if (stream) {
-    stream.complete = true;
-
-    if (!stream.upgrade){
-      // For upgraded connections, also emit this after parser.execute
-      stream.push(null);
-    }
+  if (!stream.upgrade){
+    stream.push(null);
   }
 
 
   // force to read the next incoming message
-  stream.readStart();
+  stream.resume();
 }
 
 function parserOnHeadersComplete(info) {
@@ -279,6 +261,16 @@ function parserOnHeadersComplete(info) {
   parser.incoming.url = url;
   parser.incoming.upgrade = info.upgrade;
 
+  if (util.isNumber(info.method)) {
+    // for server
+    //parser.incoming.method = HTTPParser.methods[info.method];
+  } else {
+    // for client
+    parser.incoming.statusCode = info.statusCode;
+    parser.incoming.statusMessage = info.status_msg;
+  }
+
+
   var flag_skipbody = false;
 
   if (!info.upgrade) {
@@ -293,8 +285,7 @@ function parserOnHeadersComplete(info) {
 function parserOnBody(buf, start, len) {
   var parser = this;
   var stream = parser.incoming;
-  stream.push("parsed body = "+buf);
-
+  stream.push(buf);
 }
 
 function AddHeader(dest, src) {

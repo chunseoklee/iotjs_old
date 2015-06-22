@@ -22,19 +22,16 @@ var server = http.createServer(function (req, res) {
 
   var body = '';
 
-  console.log("request handler is called");
   req.on('data', function (chunk) {
     body += chunk;
-    res.write("on data's chunk : " + body.toString());
-
   });
 
   req.on('end', function () {
-    // write back something interesting to the user:
-    res.write("we are done:"+ body + "\n");
+    console.log("req.end");
+
+    res.write(body);
     res.end();
   });
-
 
 });
 
