@@ -263,10 +263,10 @@ function parserOnHeadersComplete(info) {
 
   if (util.isNumber(info.method)) {
     // for server
-    //parser.incoming.method = HTTPParser.methods[info.method];
+    parser.incoming.method = HTTPParser.methods[info.method];
   } else {
     // for client
-    parser.incoming.statusCode = info.statusCode;
+    parser.incoming.statusCode = info.status;
     parser.incoming.statusMessage = info.status_msg;
   }
 

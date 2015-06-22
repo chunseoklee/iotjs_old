@@ -503,6 +503,16 @@ JObject* InitHttpparser() {
     JObject response(HTTP_RESPONSE);
     HTTPParserConstructor.SetProperty("RESPONSE", response);
 
+    JObject methods;
+#define V(num, name, string)                                                  \
+    JSETPROPERTY(methods, #num, #string);
+  HTTP_METHOD_MAP(V)
+#undef V
+
+
+    JSETPROPERTY(HTTPParserConstructor, "methods", methods);
+
+
 
     JObject prototype;
     HTTPParserConstructor.SetProperty("prototype", prototype);
