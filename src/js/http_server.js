@@ -19,7 +19,7 @@ var net = require('net');
 var HTTPParser = process.binding(process.binding.httpparser).HTTPParser;
 var IncomingMessage = require('http_incoming').IncomingMessage;
 var OutgoingMessage = require('http_outgoing').OutgoingMessage;
-
+var Buffer = require('buffer');
 
 var STATUS_CODES = exports.STATUS_CODES = {
   100 : 'Continue',
@@ -91,17 +91,59 @@ function ServerResponse(req) {
 
 util.inherits(ServerResponse, OutgoingMessage);
 
+
+ServerResponse.prototype.statusCode = 200;
+ServerResponse.prototype.statusMessage = undefined;
+
+
+ServerResponse.prototype._implicitHeader = function() {
+  this.writeHead(this.statusCode);
+};
+
+
+ServerResponse.prototype.writeHead = function(statusCode, reason, obj) {
+  console.log("writehead called");
+  if (util.isString(reason)) {
+    this.statusMessage = reason;
+  }
+  else {
+    this.statusMessage = STATUS_CODES[statusCode] || 'unknown';
+    obj = reason;
+  }
+
+  var statusLine = 'HTTP/1.1 ' + statusCode.toString() + ' ' +
+                   this.statusMessage + "\r\n";
+
+
+
+  this.statusCode = statusCode;
+
+  var keys;
+  if (obj) {
+    keys = Object.keys(obj);
+    for (var i=0;i<keys.length;i++) {
+      var key = keys[i];
+
+      this._headers[key] = obj[key];
+      //console.log(''+key+":"+obj[key]);
+    }
+  }
+
+
+  console.log("front of _storeHeader call");
+  this._storeHeader(statusLine);
+};
+
+
 ServerResponse.prototype.assignSocket = function(socket) {
   socket._httpMessage = this;
-  //socket.on('close', onServerResponseClose);
   this.socket = socket;
   this.connection = socket;
-  this.emit('socket', socket);
+  //this.emit('socket', socket);
   //this._flush();
 };
 
 ServerResponse.prototype.detachSocket = function(socket) {
-  //socket.removeListener('close', onServerResponseClose);
   socket._httpMessage = null;
   this.socket = this.connection = null;
 };
@@ -111,11 +153,13 @@ function Server(requestListener) {
     return new Server(requestListener);
   }
 
-  net.Server.call(this);
+  net.Server.call(this, {allowHalfOpen: true});
 
   if (util.isFunction(requestListener)) {
     this.addListener('request', requestListener);
   }
+
+  this.httpAllowHalfOpen = false;
 
   this.on('connection', connectionListener);
   this.on('clientError', function(err,conn) {
@@ -126,24 +170,21 @@ function Server(requestListener) {
 
 util.inherits(Server, net.Server);
 
-Server.prototype.setTimeout = function(msecs, callback) {
-  this.timeout = msecs;
-  if (callback)
-    this.on('timeout', callback);
-};
 
 exports.Server = Server;
 
 function connectionListener(socket) {
   var self = this;
   var incoming = [];
+  var outgoing = [];
 
+  // cf) In Node.js, freelist returns a new parser.
   // parser initialize
   var parser = new HTTPParser(HTTPParser.REQUEST);
   // FIXME: This should be impl. with Array
   parser._headers = {};
   parser._url = '';
-  // cb during  http_parsering from C side
+  // cb during  http_parsering from C side(http_parser)
   parser.OnHeaders = parserOnHeaders;
   parser.OnHeadersComplete = parserOnHeadersComplete;
   parser.OnBody = parserOnBody;
@@ -157,7 +198,7 @@ function connectionListener(socket) {
   socket.on("data", socketOnData);
   socket.on("end", socketOnEnd);
   socket.on("error", socketOnError);
-  socket.on("close", socketCloseListener);
+  socket.on("close", socketOnClose);
 
   function socketOnData(data) {
     var ret = parser.execute(data);
@@ -165,22 +206,15 @@ function connectionListener(socket) {
     if (ret instanceof Error) {
       socket.destroy();
     }
-    else if (parser.incoming && parser.incoming.upgrade) {
-      // Upgrade or CONNECT
-      // TODO: fill this part
-      parser.finish();
-      parser = null;
-    }
   }
 
-  function socketCloseListener() {
-    // mark this parser as reusable
+  function socketOnClose() {
+    console.log("socketOnClose called");
     if (this.parser) {
       parser = null;
     }
     while (incoming.length) {
       var req = incoming.shift();
-      //req.emit('aborted');
       req.emit('close');
     }
 
@@ -191,6 +225,7 @@ function connectionListener(socket) {
   }
 
   function socketOnEnd() {
+    console.log("socketOnEnd called");
     var socket = this;
     var ret = parser.finish();
 
@@ -199,8 +234,17 @@ function connectionListener(socket) {
       return;
     }
 
-    socket.end();
-
+    if (!self.httpAllowHalfOpen) {
+      // FIXME: add kill remaining incomings
+      // like abortInconming() in nodejs
+      if (socket.writable) socket.end();
+    } else if (outgoing.length) {
+      outgoing[outgoing.length - 1]._last = true;
+    } else if (socket._httpMessage) {
+      socket._httpMessage._last = true;
+    } else {
+      if (socket.writable) socket.end();
+    }
   }
 
   function parserOnIncoming(req, shouldKeepAlive) {
@@ -208,18 +252,42 @@ function connectionListener(socket) {
 
     var res = new ServerResponse(req);
 
-    res.assignSocket(socket);
+    if (socket._httpMessage) {
+      // There are already pending outgoing res, append.
+      console.log("push on outgoing");
+      outgoing.push(res);
+    } else {
+      console.log("assign new socket");
+      res.assignSocket(socket);
+    }
+
 
     function resOnFinish() {
+      console.log("resOnFinith");
+      // remove current incoming
       incoming.shift();
+
       res.detachSocket(socket);
-      socket.end(); // FIXME
+
+
+      if (res._last) {
+        console.log("res_last true");
+        socket.destroySoon();
+      } else {
+        // start the next response message
+        var m = outgoing.shift();
+        if (m) {
+          console.log("start next msg");
+          m.assignSocket(socket);
+        }
+      }
+      socket.end();
+
     }
 
     res.on('prefinish', resOnFinish);
 
-    self.emit("request", req, res);
-
+    self.emit('request', req, res);
 
     return false;
   }
@@ -232,19 +300,16 @@ function parserOnMessageComplete() {
   var parser = this;
   var stream = parser.incoming;
 
-  if (!stream.upgrade){
-    stream.push(null);
-  }
+  stream.push(null);
 
-
-  // force to read the next incoming message
-  stream.resume();
+  stream.socket.resume();
 }
 
 function parserOnHeadersComplete(info) {
   var parser = this;
   var headers = info.headers;
   var url = info.url;
+
   if(!url){
     url = parser._url;
     parser.url = "";
@@ -283,15 +348,25 @@ function parserOnHeadersComplete(info) {
 }
 
 function parserOnBody(buf, start, len) {
+  console.log("parseonbody:"+ buf.toString() + start + len);
+
   var parser = this;
   var stream = parser.incoming;
-  stream.push(buf);
+
+  /*if (!stream) {
+    return;
+  }*/
+
+  // FIXME: if buffer.slice is done, use it.
+  var bufStr = buf.toString();
+  var bodyStr = bufStr.slice(start, start+len);
+  stream.push(bodyStr);
 }
 
 function AddHeader(dest, src) {
   for(var i=0;i<src.length;i++){
     dest[dest.length+i] = src[i];
-    }
+  }
   dest.length = dest.length + src.length;
 }
 

@@ -14,7 +14,11 @@
  */
 
 var Server = require('http_server').Server;
+var HTTPParser = process.binding(process.binding.httpparser).HTTPParser;
 
 exports.createServer = function(requestListener){
   return new Server(requestListener);
 };
+
+
+exports.METHODS = HTTPParser.methods;

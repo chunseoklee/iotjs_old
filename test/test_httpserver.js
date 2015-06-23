@@ -16,27 +16,40 @@
 
 var http = require('http');
 
+var ar = [ 1, 2, 3];
+console.log(''+ar.length);
+
 var server = http.createServer(function (req, res) {
   // req is an http.IncomingMessage, which is a Readable Stream
   // res is an http.ServerResponse, which is a Writable Stream
 
   var body = '';
+  var url = req.url;
 
+  console.log("req.method: " + req.method);
   req.on('data', function (chunk) {
+    console.log("req.on data called :" + chunk.toString()  +"\n....");
     body += chunk;
   });
 
   req.on('end', function () {
-    console.log("req.end");
-
-    res.write(body);
+    console.log("req.end is called");
+    //res.write("body is: ");
+    res.writeHead(200,{ "Connection" : "close"});
+    res.write("<html>");
+    res.write("<head>");
+    res.write("<title>"+body+"</title>");
+    res.write("</head>");
+    res.write("<body>");
+    res.write(url);
+    res.write("</body>");
+    res.write("</html>");
+    //res.write(body);
     res.end();
   });
 
 });
 
-server.listen(3001,1,cb);
-
-function cb(){
+server.listen(3001,1,function cb(){
   console.log("listening....");
-};
+});

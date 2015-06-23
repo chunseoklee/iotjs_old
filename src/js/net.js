@@ -164,6 +164,7 @@ Socket.prototype.destroySoon = function() {
 
 
 Socket.prototype._onread = function(nread, isEOF, buffer) {
+  console.log("socket _onread called");
   var self = this;
   var state = self._socketState;
 
@@ -182,7 +183,10 @@ Socket.prototype._onread = function(nread, isEOF, buffer) {
     stream.Readable.prototype.error.call(this, err);
   } else if (nread > 0) {
     stream.Readable.prototype.push.call(this, buffer);
+
   }
+
+
 };
 
 

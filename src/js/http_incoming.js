@@ -18,7 +18,7 @@ var util = require('util');
 var stream = require('stream');
 
 function IncomingMessage(socket) {
-  stream.ReadableStream.call(this);
+  stream.Readable.call(this);
 
   this.socket = socket;
   this.connection = socket;
@@ -40,12 +40,12 @@ function IncomingMessage(socket) {
 
 }
 
-util.inherits(IncomingMessage, stream.ReadableStream);
+util.inherits(IncomingMessage, stream.Readable);
 
 exports.IncomingMessage = IncomingMessage;
 
 IncomingMessage.prototype.read = function(n) {
-  this.read = stream.ReadableStream.prototype.read;
+  this.read = stream.Readable.prototype.read;
   return this.read(n);
 };
 
